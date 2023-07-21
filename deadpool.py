@@ -40,7 +40,7 @@ class Future(concurrent.futures.Future):
             try:
                 self.pid_callback(self._pid)
             except Exception:  # pragma: no cover
-                logger.exception(f"Error calling pid_callback")
+                logger.exception("Error calling pid_callback")
 
     def add_pid_callback(self, fn):
         self.pid_callback = fn
@@ -160,7 +160,7 @@ class Deadpool(Executor):
             try:
                 self.running_jobs.get_nowait()
             except Empty:  # pragma: no cover
-                logger.warning(f"Weird error, did not expect running jobs to be empty")
+                logger.warning("Weird error, did not expect running jobs to be empty")
 
     def submit(self, __fn: Callable, *args, timeout=None, **kwargs) -> Future:
         if self.closed:
@@ -193,7 +193,7 @@ def raw_runner(conn: Connection, fn, args, kwargs, initializer, initargs, finiti
         try:
             initializer(*initargs)
         except:
-            logger.exception(f"Initializer failed")
+            logger.exception("Initializer failed")
 
     try:
         results = fn(*args, **kwargs)
@@ -208,7 +208,7 @@ def raw_runner(conn: Connection, fn, args, kwargs, initializer, initargs, finiti
             try:
                 finitializer(*finitargs)
             except:
-                logger.exception(f"Finitializer failed")
+                logger.exception("Finitializer failed")
 
 
 # Taken fromhttps
