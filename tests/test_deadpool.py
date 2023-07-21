@@ -22,7 +22,7 @@ def f_err(exception_class, *args, **kwargs):
 
 
 def test_abc():
-    assert 1 == 1
+    pass
 
 
 def test_simple():
