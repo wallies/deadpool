@@ -95,11 +95,21 @@ interface. However, it differs in the following ways:
   the pool (up to the ``max_workers`` limit). It is like having
   ``max_tasks_per_child == 1`` (a new feature in
   Python 3.11, although it was available in `multiprocessing.Pool`_
-  since Python 3.2). I have ideas about making this configurable, but
-  for now this is a much less important than overall resilience of
-  the pool. This also means that ``Deadpool`` doesn't suffer from
-  long-lived subprocesses being affected by memory leaks, usually
-  created by native extensions.
+  since Python 3.2). This is the default, and it means that
+  ``Deadpool`` doesn't suffer from long-lived subprocesses being
+  affected by memory leaks, usually created by native extensions.
+  This *is* now configurable: pass ``max_tasks_per_child`` (an int, or
+  ``None`` for unlimited) to let a subprocess handle several tasks
+  before being retired, which amortizes the process-spawn cost for
+  workloads made of many small tasks. Resilience is preserved: a
+  reused worker is still discarded on timeout, on unexpected death
+  (e.g. the OOM killer), and once it reaches its task budget.
+- Internally, ``Deadpool`` runs a single event-driven manager thread
+  that waits on all task pipes and process sentinels at once (via
+  ``multiprocessing.connection.wait``) and services all task timeouts
+  from one deadline-ordered heap. There is no per-task poll loop and
+  no per-task timer thread, so task completion is observed as soon as
+  it happens rather than on a fixed polling interval.
 - ``Deadpool`` does not keep a pool of processes around indefinitely.
   There will only be as many concurrent processes running as there
   is work to be done, up to the limit set by the ``max_workers``

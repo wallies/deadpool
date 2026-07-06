@@ -153,6 +153,54 @@ def test_pid_callback():
     assert collector and isinstance(collector[0], int)
 
 
+def getpid(x=None):
+    return os.getpid()
+
+
+def test_process_per_task_default():
+    # With the default (max_tasks_per_child=1) every task must run in a fresh
+    # subprocess, i.e. all pids are distinct.
+    with deadpool.Deadpool(max_workers=1) as exe:
+        pids = list(exe.map(getpid, range(5)))
+
+    assert len(set(pids)) == len(pids)
+
+
+def test_process_reuse():
+    # With reuse enabled and a single worker, sequential tasks should land on
+    # the same subprocess (amortized spawn cost, idea 3).
+    with deadpool.Deadpool(max_workers=1, max_tasks_per_child=10) as exe:
+        pids = list(exe.map(getpid, range(5)))
+
+    assert len(set(pids)) == 1
+
+
+def test_process_reuse_recycles_at_budget():
+    # A reused worker must be retired once it hits its task budget, so a new
+    # subprocess (new pid) appears after `max_tasks_per_child` tasks.
+    with deadpool.Deadpool(max_workers=1, max_tasks_per_child=2) as exe:
+        pids = list(exe.map(getpid, range(4)))
+
+    # 4 tasks / budget of 2 => exactly 2 distinct subprocesses.
+    assert len(set(pids)) == 2
+
+
+def test_reuse_survives_task_timeout():
+    # Even with reuse, a timed-out task kills its worker; the pool keeps going.
+    with deadpool.Deadpool(max_workers=2, max_tasks_per_child=5) as exe:
+        slow = exe.submit(t, timeout=1.0)
+        with pytest.raises(deadpool.TimeoutError):
+            slow.result()
+
+        # Pool is still usable afterwards.
+        assert exe.submit(m, 5).result() == 15
+
+
+def test_invalid_max_tasks_per_child():
+    with pytest.raises(ValueError):
+        deadpool.Deadpool(max_tasks_per_child=0)
+
+
 @contextmanager
 def elapsed():
     t0 = time.perf_counter()
